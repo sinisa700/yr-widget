@@ -1,99 +1,112 @@
 <!doctype html>
 <html lang="hr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Yr widget — prognoza</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:20px;background:#f7fbff;color:#0b1724}
-    .card{max-width:900px;margin:0 auto;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(15,30,50,0.06)}
-    h1{font-size:1.2rem;margin:0 0 12px}
-    label{display:block;margin-top:10px;font-weight:600}
-    select{width:100%;padding:8px;border-radius:8px;border:1px solid #dfe6ef}
-    footer{font-size:0.85rem;color:#555;margin-top:12px}
-    #widgetFrame{width:100%;border:0;border-radius:8px;margin-top:12px;min-height:220px}
-    .note{font-size:0.9rem;color:#333;margin-top:10px}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Yr Widget – pretraga po nazivu mjesta</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:20px;background:#f7fbff;color:#0b1724}
+  .card{max-width:900px;margin:0 auto;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(15,30,50,.06)}
+  h1{font-size:1.3rem;margin-top:0}
+  label{font-weight:600;margin-top:10px;display:block}
+  input,select{width:100%;padding:8px;border-radius:8px;border:1px solid #dfe6ef;margin-top:4px}
+  #results{border:1px solid #ccc;border-top:none;border-radius:0 0 8px 8px;background:#fff;max-height:180px;overflow:auto;display:none}
+  #results div{padding:6px 10px;cursor:pointer}
+  #results div:hover{background:#f0f4f9}
+  #widgetFrame{width:100%;border:0;border-radius:8px;margin-top:14px;min-height:240px}
+  footer{font-size:0.85rem;color:#555;margin-top:12px}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Jednostavni Yr widget</h1>
+<div class="card">
+  <h1>Yr widget – odabir po nazivu mjesta</h1>
 
-    <label for="location">1) Odaberi lokaciju</label>
-    <select id="location">
-      <!-- Primjeri: zamijeni value sa svojim location id (npr. 1-72837) -->
-      <option value="1-72837">Primjer!!!!: location 1-72837 (zamijeni sa svojim)</option>
-      <option value="custom">Unesi vlastiti location id...</option>
-    </select>
+  <label for="place">Upiši naziv mjesta</label>
+  <input type="text" id="place" placeholder="npr. Zagreb, Split, Oslo..." autocomplete="off">
+  <div id="results"></div>
 
-    <label for="forecast">2) Tip prognoze</label>
-    <select id="forecast">
-	  <option value="table">Dnevno / Dugoročno (table - 9 dana)</option>
-	  <option value="card">Satna (card - 24h)</option>
-      <option value="meteogram">Satna (meteogram)</option>
-      
-    </select>
+  <label for="forecast">Tip prognoze</label>
+  <select id="forecast">
+    <option value="meteogram">Satna (meteogram)</option>
+    <option value="card">Satna (card 24h)</option>
+    <option value="table">Dnevno / Dugoročno (table 9 dana)</option>
+  </select>
 
-    <div class="note">Kako pronaći location id: otvori <a href="https://www.yr.no" target="_blank" rel="noopener">yr.no</a>, pretraži mjesto, u URL-u kopiraj vrijednost koja izgleda kao <code>1-XXXXX</code>. </div>
+  <iframe id="widgetFrame" title="YR widget" src="" loading="eager" referrerpolicy="no-referrer"></iframe>
 
-    <iframe id="widgetFrame" title="YR widget" src="" loading="eager" referrerpolicy="no-referrer"></iframe>
+  <footer>
+    Weather data and widgets from Yr (Meteorologisk institutt). Data licensed under NLOD 2.0 and CC BY 4.0.
+  </footer>
+</div>
 
-    <footer>
-      <div>Weather data and widgets from Yr (Meteorologisk institutt). Data licensed under NLOD 2.0 and CC BY 4.0.</div>
-    </footer>
-  </div>
+<script>
+const resultsBox = document.getElementById('results');
+const placeInput = document.getElementById('place');
+const forecastSel = document.getElementById('forecast');
+const iframe = document.getElementById('widgetFrame');
 
-  <script>
-    // Mapiranje tip->url pattern (eng verzija). Mijenjaj "en" ako želiš drugi jezik (nb/nn/sme).
-    const urlPatterns = {
-      'meteogram': loc => `https://www.yr.no/en/content/${loc}/meteogram.svg`,
-      'card':     loc => `https://www.yr.no/en/content/${loc}/card.html`,
-      'table':    loc => `https://www.yr.no/en/content/${loc}/table.html`
-    };
+const urlPatterns = {
+  meteogram: id => `https://www.yr.no/en/content/${id}/meteogram.svg`,
+  card:      id => `https://www.yr.no/en/content/${id}/card.html`,
+  table:     id => `https://www.yr.no/en/content/${id}/table.html`
+};
 
-    const locSelect = document.getElementById('location');
-    const forecastSelect = document.getElementById('forecast');
-    const iframe = document.getElementById('widgetFrame');
+let currentId = null;
 
-    function updateWidget() {
-      let loc = locSelect.value;
-      if (loc === 'custom') {
-        const user = prompt('Zalijepi location id sa yr.no (npr. 1-72837):');
-        if (!user) {
-          // vrati na prvi izbor
-          locSelect.selectedIndex = 0;
-          loc = locSelect.value;
-        } else {
-          // dodaj novu opciju i odaberi je
-          const opt = document.createElement('option');
-          opt.value = user.trim();
-          opt.text = `Custom: ${user.trim()}`;
-          opt.selected = true;
-          locSelect.appendChild(opt);
-          loc = user.trim();
-        }
-      }
+// Debounce helper
+let timer;
+placeInput.addEventListener('input', () => {
+  clearTimeout(timer);
+  const q = placeInput.value.trim();
+  if (!q) { resultsBox.style.display='none'; return; }
+  timer = setTimeout(() => searchPlace(q), 400);
+});
 
-      const type = forecastSelect.value;
-      const pattern = urlPatterns[type];
-      if (!pattern) return;
-      const url = pattern(loc);
+async function searchPlace(query){
+  try {
+    const res = await fetch(`https://api.met.no/weatherapi/geolocation/1.0/?q=${encodeURIComponent(query)}`,{
+      headers:{'User-Agent':'my-yr-widget/1.0 sinisa.dukic@yahoo.com'}
+    });
+    if(!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    showResults(data.entries || []);
+  } catch(e){
+    console.error(e);
+    resultsBox.style.display='none';
+  }
+}
 
-      // prilagodi visinu iframea (bolje UX)
-      if (type === 'meteogram') iframe.style.height = '420px';
-      else if (type === 'card') iframe.style.height = '240px';
-      else if (type === 'table') iframe.style.height = '520px';
-      else iframe.style.height = '360px';
+function showResults(list){
+  resultsBox.innerHTML = '';
+  if (!list.length){resultsBox.style.display='none';return;}
+  list.forEach(item=>{
+    // item.id je oblika "1-12345"
+    const div = document.createElement('div');
+    div.textContent = `${item.name}, ${item.country}`;
+    div.onclick = () => selectLocation(item.id, `${item.name}, ${item.country}`);
+    resultsBox.appendChild(div);
+  });
+  resultsBox.style.display = 'block';
+}
 
-      iframe.src = url;
-    }
+function selectLocation(id, label){
+  currentId = id;
+  placeInput.value = label;
+  resultsBox.style.display = 'none';
+  updateWidget();
+}
 
-    // inicijalno
-    locSelect.addEventListener('change', updateWidget);
-    forecastSelect.addEventListener('change', updateWidget);
+forecastSel.addEventListener('change', updateWidget);
 
-    // load default
-    window.addEventListener('load', updateWidget);
-  </script>
+function updateWidget(){
+  if(!currentId) return;
+  const type = forecastSel.value;
+  const url = urlPatterns[type](currentId);
+  iframe.src = url;
+  if (type==='meteogram') iframe.style.height='420px';
+  else if (type==='card') iframe.style.height='260px';
+  else iframe.style.height='520px';
+}
+</script>
 </body>
 </html>
