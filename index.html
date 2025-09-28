@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Yr widget — prognoza</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:20px;background:#f7fbff;color:#0b1724}
+    .card{max-width:900px;margin:0 auto;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(15,30,50,0.06)}
+    h1{font-size:1.2rem;margin:0 0 12px}
+    label{display:block;margin-top:10px;font-weight:600}
+    select{width:100%;padding:8px;border-radius:8px;border:1px solid #dfe6ef}
+    footer{font-size:0.85rem;color:#555;margin-top:12px}
+    #widgetFrame{width:100%;border:0;border-radius:8px;margin-top:12px;min-height:220px}
+    .note{font-size:0.9rem;color:#333;margin-top:10px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Jednostavni Yr widget</h1>
+
+    <label for="location">1) Odaberi lokaciju</label>
+    <select id="location">
+      <!-- Primjeri: zamijeni value sa svojim location id (npr. 1-72837) -->
+      <option value="1-72837">Primjer!!!!: location 1-72837 (zamijeni sa svojim)</option>
+      <option value="custom">Unesi vlastiti location id...</option>
+    </select>
+
+    <label for="forecast">2) Tip prognoze</label>
+    <select id="forecast">
+	  <option value="table">Dnevno / Dugoročno (table - 9 dana)</option>
+	  <option value="card">Satna (card - 24h)</option>
+      <option value="meteogram">Satna (meteogram)</option>
+      
+    </select>
+
+    <div class="note">Kako pronaći location id: otvori <a href="https://www.yr.no" target="_blank" rel="noopener">yr.no</a>, pretraži mjesto, u URL-u kopiraj vrijednost koja izgleda kao <code>1-XXXXX</code>. </div>
+
+    <iframe id="widgetFrame" title="YR widget" src="" loading="eager" referrerpolicy="no-referrer"></iframe>
+
+    <footer>
+      <div>Izvor: Yr (Meteorologisk institutt). Podaci su licencirani pod NLOD 2.0 i CC BY 4.0 — dodaj atribuciju na stranici.</div>
+    </footer>
+  </div>
+
+  <script>
+    // Mapiranje tip->url pattern (eng verzija). Mijenjaj "en" ako želiš drugi jezik (nb/nn/sme).
+    const urlPatterns = {
+      'meteogram': loc => `https://www.yr.no/en/content/${loc}/meteogram.svg`,
+      'card':     loc => `https://www.yr.no/en/content/${loc}/card.html`,
+      'table':    loc => `https://www.yr.no/en/content/${loc}/table.html`
+    };
+
+    const locSelect = document.getElementById('location');
+    const forecastSelect = document.getElementById('forecast');
+    const iframe = document.getElementById('widgetFrame');
+
+    function updateWidget() {
+      let loc = locSelect.value;
+      if (loc === 'custom') {
+        const user = prompt('Zalijepi location id sa yr.no (npr. 1-72837):');
+        if (!user) {
+          // vrati na prvi izbor
+          locSelect.selectedIndex = 0;
+          loc = locSelect.value;
+        } else {
+          // dodaj novu opciju i odaberi je
+          const opt = document.createElement('option');
+          opt.value = user.trim();
+          opt.text = `Custom: ${user.trim()}`;
+          opt.selected = true;
+          locSelect.appendChild(opt);
+          loc = user.trim();
+        }
+      }
+
+      const type = forecastSelect.value;
+      const pattern = urlPatterns[type];
+      if (!pattern) return;
+      const url = pattern(loc);
+
+      // prilagodi visinu iframea (bolje UX)
+      if (type === 'meteogram') iframe.style.height = '420px';
+      else if (type === 'card') iframe.style.height = '240px';
+      else if (type === 'table') iframe.style.height = '520px';
+      else iframe.style.height = '360px';
+
+      iframe.src = url;
+    }
+
+    // inicijalno
+    locSelect.addEventListener('change', updateWidget);
+    forecastSelect.addEventListener('change', updateWidget);
+
+    // load default
+    window.addEventListener('load', updateWidget);
+  </script>
+</body>
+</html>
