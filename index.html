@@ -3,108 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Yr Widget – pretraga po nazivu mjesta</title>
+<title>Yr Widget – traži po nazivu</title>
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:20px;background:#f7fbff;color:#0b1724}
-  .card{max-width:900px;margin:0 auto;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(15,30,50,.06)}
-  h1{font-size:1.3rem;margin-top:0}
-  label{font-weight:600;margin-top:10px;display:block}
-  input,select{width:100%;padding:8px;border-radius:8px;border:1px solid #dfe6ef;margin-top:4px}
-  #results{border:1px solid #ccc;border-top:none;border-radius:0 0 8px 8px;background:#fff;max-height:180px;overflow:auto;display:none}
-  #results div{padding:6px 10px;cursor:pointer}
-  #results div:hover{background:#f0f4f9}
-  #widgetFrame{width:100%;border:0;border-radius:8px;margin-top:14px;min-height:240px}
-  footer{font-size:0.85rem;color:#555;margin-top:12px}
+ body{font-family:sans-serif;background:#f7fbff;margin:20px}
+ .card{max-width:800px;margin:auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,.1)}
+ label{font-weight:600;margin-top:10px;display:block}
+ input,select{width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:6px}
+ #results{border:1px solid #ccc;border-top:none;border-radius:0 0 6px 6px;display:none;max-height:180px;overflow:auto;background:#fff}
+ #results div{padding:6px 10px;cursor:pointer}
+ #results div:hover{background:#eef3f9}
+ iframe{width:100%;border:0;margin-top:14px;border-radius:8px;min-height:260px}
+ footer{font-size:0.8rem;margin-top:10px;color:#555}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>Yr widget – odabir po nazivu mjesta</h1>
+  <h2>Prognoza (yr.no) – traži mjesto</h2>
 
-  <label for="place">Upiši naziv mjesta</label>
-  <input type="text" id="place" placeholder="npr. Zagreb, Split, Oslo..." autocomplete="off">
+  <label for="place">Naziv mjesta:</label>
+  <input type="text" id="place" placeholder="npr. Zagreb, Split, Oslo" autocomplete="off">
   <div id="results"></div>
 
-  <label for="forecast">Tip prognoze</label>
+  <label for="forecast">Tip prognoze:</label>
   <select id="forecast">
+    <option value="table">Dnevno / dugoročno (table)</option>
     <option value="meteogram">Satna (meteogram)</option>
-    <option value="card">Satna (card 24h)</option>
-    <option value="table">Dnevno / Dugoročno (table 9 dana)</option>
+    <option value="card">Kratki prikaz (card 24h)</option>
   </select>
 
-  <iframe id="widgetFrame" title="YR widget" src="" loading="eager" referrerpolicy="no-referrer"></iframe>
+  <iframe id="widget" title="YR widget"></iframe>
 
-  <footer>
-    Weather data and widgets from Yr (Meteorologisk institutt). Data licensed under NLOD 2.0 and CC BY 4.0.
-  </footer>
+  <footer>Weather data and widgets from Yr (Meteorologisk institutt). Data licensed under NLOD 2.0 and CC BY 4.0.</footer>
 </div>
 
 <script>
-const resultsBox = document.getElementById('results');
 const placeInput = document.getElementById('place');
+const resultsBox = document.getElementById('results');
 const forecastSel = document.getElementById('forecast');
-const iframe = document.getElementById('widgetFrame');
+const iframe = document.getElementById('widget');
 
-const urlPatterns = {
-  meteogram: id => `https://www.yr.no/en/content/${id}/meteogram.svg`,
-  card:      id => `https://www.yr.no/en/content/${id}/card.html`,
-  table:     id => `https://www.yr.no/en/content/${id}/table.html`
+const pattern = {
+  meteogram: (lat,lon)=>`https://www.yr.no/en/content/${lat},${lon}/meteogram.svg`,
+  table:     (lat,lon)=>`https://www.yr.no/en/content/${lat},${lon}/table.html`,
+  card:      (lat,lon)=>`https://www.yr.no/en/content/${lat},${lon}/card.html`
 };
 
-let currentId = null;
+let timer, currentCoords=null;
 
-// Debounce helper
-let timer;
-placeInput.addEventListener('input', () => {
+placeInput.addEventListener('input', ()=>{
   clearTimeout(timer);
-  const q = placeInput.value.trim();
-  if (!q) { resultsBox.style.display='none'; return; }
-  timer = setTimeout(() => searchPlace(q), 400);
+  const q=placeInput.value.trim();
+  if(!q){resultsBox.style.display='none';return;}
+  timer=setTimeout(()=>searchPlace(q),400);
 });
 
-async function searchPlace(query){
-  try {
-    const res = await fetch(`https://api.met.no/weatherapi/geolocation/1.0/?q=${encodeURIComponent(query)}`,{
-      headers:{'User-Agent':'my-yr-widget/1.0 sinisa.dukic@yahoo.com'}
+async function searchPlace(q){
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?format=json&limit=8&q=${encodeURIComponent(q)}`;
+    const res=await fetch(url,{
+      headers:{'User-Agent':'yr-widget-demo/1.0 (kontakt: youremail@example.com)'}
     });
-    if(!res.ok) throw new Error(res.statusText);
-    const data = await res.json();
-    showResults(data.entries || []);
-  } catch(e){
-    console.error(e);
-    resultsBox.style.display='none';
-  }
+    const data=await res.json();
+    showResults(data);
+  }catch(e){console.error(e);}
 }
 
 function showResults(list){
-  resultsBox.innerHTML = '';
-  if (!list.length){resultsBox.style.display='none';return;}
+  resultsBox.innerHTML='';
+  if(!list.length){resultsBox.style.display='none';return;}
   list.forEach(item=>{
-    // item.id je oblika "1-12345"
-    const div = document.createElement('div');
-    div.textContent = `${item.name}, ${item.country}`;
-    div.onclick = () => selectLocation(item.id, `${item.name}, ${item.country}`);
-    resultsBox.appendChild(div);
+    const d=document.createElement('div');
+    d.textContent=item.display_name;
+    d.onclick=()=>selectLocation(item.lat,item.lon,item.display_name);
+    resultsBox.appendChild(d);
   });
-  resultsBox.style.display = 'block';
+  resultsBox.style.display='block';
 }
 
-function selectLocation(id, label){
-  currentId = id;
-  placeInput.value = label;
-  resultsBox.style.display = 'none';
+function selectLocation(lat,lon,label){
+  currentCoords={lat,lon};
+  placeInput.value=label;
+  resultsBox.style.display='none';
   updateWidget();
 }
 
-forecastSel.addEventListener('change', updateWidget);
+forecastSel.addEventListener('change',updateWidget);
 
 function updateWidget(){
-  if(!currentId) return;
-  const type = forecastSel.value;
-  const url = urlPatterns[type](currentId);
-  iframe.src = url;
-  if (type==='meteogram') iframe.style.height='420px';
-  else if (type==='card') iframe.style.height='260px';
+  if(!currentCoords) return;
+  const t=forecastSel.value;
+  iframe.src=pattern[t](currentCoords.lat,currentCoords.lon);
+  if(t==='meteogram') iframe.style.height='420px';
+  else if(t==='card') iframe.style.height='260px';
   else iframe.style.height='520px';
 }
 </script>
